@@ -1,5 +1,5 @@
 import os
-from PyPDF2 import PdfRceader
+from PyPDF2 import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 import streamlit as st
@@ -9,6 +9,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
+from langchain.memory import ConversationBufferMemory
+
 
 load_dotenv()
 os.getenv("GOOGLE_API_KEY")
@@ -42,7 +44,7 @@ def get_vector_store(chunks):
     vector_store.save_local("faiss_index")
 
 
-def get_conversational_chain():
+def get_conversational_chain(memory):
     
     prompt_template = """
     {context}\n
@@ -52,20 +54,8 @@ def get_conversational_chain():
     Answer:
     """
 
-    '''
-    prompt_template = """
-    Please thoroughly read the provided PDF on industry and economics and foreign trade, paying close attention to key concepts, methodologies, and technological advancements discussed within. After reviewing the material, demonstrate your understanding and creativity by answering the  Question from the given Context 
-    Context:\n {context}?\n
-    Question: \n{question}\n
-    Answer:
-    """
-    '''
-    model = ChatGoogleGenerativeAI(model="gemini-pro",
-                                   client=genai,
-                                   temperature=0.6,
-                                   )
-    prompt = PromptTemplate(template=prompt_template,
-                            input_variables=["context", "question"])
+    model = ChatGoogleGenerativeAI(model="gemini-pro", client=genai, temperature=0.6, memory=memory)
+    prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
     chain = load_qa_chain(llm=model, chain_type="stuff", prompt=prompt)
     return chain
 
@@ -78,11 +68,11 @@ def add_memory_to_context():
     context = "\n".join([f"{msg['role'].capitalize()}: {msg['content']}" for msg in st.session_state.messages])
     return context
 
-def user_input(user_question):
+def user_input(user_question,memory):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")  # type: ignore
     new_db = FAISS.load_local("faiss_index", embeddings)
     docs = new_db.similarity_search(user_question)
-    chain = get_conversational_chain()
+    chain = get_conversational_chain(memory)
     context = add_memory_to_context()
     response = chain.invoke(
         {"input_documents": docs, "question": user_question, "context": context}, 
@@ -118,6 +108,7 @@ def main():
     if "messages" not in st.session_state.keys():
         st.session_state.messages = [
             {"role": "assistant", "content": "upload some pdfs and ask me a question"}]
+    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -131,7 +122,7 @@ def main():
     if st.session_state.messages[-1]["role"] != "assistant":
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                response = user_input(prompt)
+                response = user_input(prompt,memory)
                 placeholder = st.empty()
                 full_response = ''
                 for item in response['output_text']:
