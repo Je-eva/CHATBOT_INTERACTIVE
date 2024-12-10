@@ -1,4 +1,4 @@
-#check with my imports in my code if i missed out something
+#check with my readme and code if i missed out something
 streamlit
 google-generativeai
 python-dotenv
