@@ -1,4 +1,4 @@
-
+#check with my imports in my code if i missed out something
 streamlit
 google-generativeai
 python-dotenv
@@ -6,18 +6,7 @@ langchain
 PyPDF2
 faiss-cpu
 langchain_google_genai 
-fastapi
-uvicorn
-SpeechRecognition
 textblob
 pyttsx3
-scikit-learn
-keras
-matplotlib
-scipy
 numpy
-tensorflow
-keras
-opencv-python
-scipy
-pickle-mixin
+
